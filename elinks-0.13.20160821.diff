@@ -1,8 +1,8 @@
 # Patch to fix cofiguring and building with Ruby 1.9 and Lua 5.2
 # See https://gitweb.gentoo.org/repo/gentoo.git/tree/www-client/elinks/files/elinks-0.12_pre5-ruby-1.9.patch
-diff -urNad elinks-0.12pre6-orig/config/m4/ruby.m4 elinks-0.12pre6/config/m4/ruby.m4
---- elinks-0.12pre6-orig/config/m4/ruby.m4	2012-10-28 14:57:15.000000000 +0200
-+++ elinks-0.12pre6/config/m4/ruby.m4	2016-10-25 18:41:10.000000000 +0300
+diff -urNad elinks-0.13.20160821-orig/config/m4/ruby.m4 elinks-0.13.20160821/config/m4/ruby.m4
+--- elinks-0.13.20160821-orig/config/m4/ruby.m4	2016-10-25 21:39:01.000000000 +0300
++++ elinks-0.13.20160821/config/m4/ruby.m4	2016-10-25 21:52:50.000000000 +0300
 @@ -32,36 +32,40 @@
  	if test "$CONFIG_SCRIPTING_RUBY" != "no"; then
  
@@ -75,102 +75,39 @@ diff -urNad elinks-0.12pre6-orig/config/m4/ruby.m4 elinks-0.12pre6/config/m4/rub
  fi
  
  EL_RESTORE_FLAGS
-# # For Slackware I do not provide lualib, so remove it and use Lua 5.2, fix configtest.c for Lua 5.2
-diff -urNad elinks-0.12pre6-orig/configure.in elinks-0.12pre6/configure.in
---- elinks-0.12pre6-orig/configure.in	2012-10-28 14:57:15.000000000 +0200
-+++ elinks-0.12pre6/configure.in	2016-10-25 19:44:23.000000000 +0300
-@@ -834,10 +834,10 @@
+# Use Lua 5.2 and library without suffix
+diff -urNad elinks-0.13.20160821-orig/configure.in elinks-0.13.20160821/configure.in
+--- elinks-0.13.20160821-orig/configure.in	2016-10-25 21:39:01.000000000 +0300
++++ elinks-0.13.20160821/configure.in	2016-10-25 22:07:41.000000000 +0300
+@@ -902,10 +902,10 @@
  		withval="";
  	fi
  	for luadir in "$withval" "" /usr /usr/local; do
--		for suffix in "" 50; do
-+		for suffix in "" 52; do
+-		for suffix in "" 5.1 51; do
++		for suffix in "" 5.2 52; do
  			if test "$cf_result" = no && ( test -f "$luadir/include/lua.h" || \
  			   test -f "$luadir/include/lua$suffix/lua.h" ) ; then
--				LUA_LIBS="-L$luadir/lib -llua$suffix -llualib$suffix -lm"
+-				LUA_LIBS="-L$luadir/lib -llua$suffix -lm"
 +				LUA_LIBS="-L$luadir/lib -llua -lm"
  				LUA_CFLAGS="-I$luadir/include -I$luadir/include/lua$suffix"
  
  				LIBS="$LUA_LIBS $LIBS_X"
-@@ -846,14 +846,8 @@
- 
- 				# Check that it is a compatible Lua version
- 				AC_LINK_IFELSE([AC_LANG_PROGRAM([[	#include <lua.h>
--						#include <lualib.h>]], [[	lua_State *L = lua_open();
--						luaopen_base(L);
--						luaopen_table(L);
--						luaopen_io(L);
--						luaopen_string(L);
--						luaopen_math(L);
--						lua_pushboolean(L, 1);
--						lua_close(L);]])],[cf_result=yes],[cf_result=no])
-+						#include <lualib.h>]], [[	lua_State *L = luaL_newstate();
-+						luaL_openlibs(L);]])],[cf_result=yes],[cf_result=no])
- 			fi
- 		done
- 	done
-# Fix compilation error due to API changes in Lua 5.1 and 5.2
-diff -urNad elinks-0.12pre6-orig/src/scripting/lua/core.c elinks-0.12pre6/src/scripting/lua/core.c
---- elinks-0.12pre6-orig/src/scripting/lua/core.c	2012-10-28 14:57:15.000000000 +0200
-+++ elinks-0.12pre6/src/scripting/lua/core.c	2016-10-25 20:01:57.000000000 +0300
-@@ -658,7 +658,7 @@
- 	if (file_can_read(file)) {
- 		int oldtop = lua_gettop(S);
- 
--		if (lua_dofile(S, file) != 0)
-+		if (luaL_dofile(S, file) != 0)
- 			sleep(3); /* Let some time to see error messages. */
- 		lua_settop(S, oldtop);
- 	}
-@@ -669,13 +669,9 @@
- void
- init_lua(struct module *module)
- {
--	L = lua_open();
-+	L = luaL_newstate();
- 
--	luaopen_base(L);
--	luaopen_table(L);
--	luaopen_io(L);
--	luaopen_string(L);
--	luaopen_math(L);
-+	luaL_openlibs(L);
- 
- 	lua_register(L, LUA_ALERT, l_alert);
- 	lua_register(L, "current_url", l_current_url);
-@@ -780,7 +776,7 @@
- 		int oldtop = lua_gettop(L);
- 
- 		if (prepare_lua(ses) == 0) {
--			lua_dostring(L, expr);
-+			luaL_dostring(L, expr);
- 			lua_settop(L, oldtop);
- 			finish_lua();
- 		}
-diff -urNad elinks-0.12pre6-orig/src/scripting/lua/hooks.c elinks-0.12pre6/src/scripting/lua/hooks.c
---- elinks-0.12pre6-orig/src/scripting/lua/hooks.c	2012-10-28 14:57:15.000000000 +0200
-+++ elinks-0.12pre6/src/scripting/lua/hooks.c	2016-10-25 20:03:20.000000000 +0300
-@@ -140,7 +140,7 @@
- 	if (err) return EVENT_HOOK_STATUS_NEXT;
- 
- 	if (lua_isstring(L, -1)) {
+# Fix compile issue due to API changes in Lua 5.2
+diff -urNad elinks-0.13.20160821-orig/src/scripting/lua/hooks.c elinks-0.13.20160821/src/scripting/lua/hooks.c
+--- elinks-0.13.20160821-orig/src/scripting/lua/hooks.c       2016-10-25 21:40:14.000000000 +0300
++++ elinks-0.13.20160821/src/scripting/lua/hooks.c    2016-10-25 22:10:21.000000000 +0300
+@@ -144,7 +144,7 @@
+	if (err) return EVENT_HOOK_STATUS_NEXT;
+
+	if (lua_isstring(L, -1)) {
 -		int len = lua_strlen(L, -1);
 +		int len = lua_rawlen(L, -1);
- 
- 		add_fragment(cached, 0, (unsigned char *) lua_tostring(L, -1), len);
- 		normalize_cache_entry(cached, len);
-@@ -200,7 +200,7 @@
- script_hook_quit(va_list ap, void *data)
- {
- 	if (!prepare_lua(NULL)) {
--		lua_dostring(lua_state, "if quit_hook then quit_hook() end");
-+		luaL_dostring(lua_state, "if quit_hook then quit_hook() end");
- 		finish_lua();
- 	}
- 
-diff -urNad elinks-0.12pre6-orig/src/scripting/ruby/core.c elinks-0.12pre6/src/scripting/ruby/core.c
---- elinks-0.12pre6-orig/src/scripting/ruby/core.c	2012-10-28 14:57:15.000000000 +0200
-+++ elinks-0.12pre6/src/scripting/ruby/core.c	2016-10-25 18:41:10.000000000 +0300
+
+		add_fragment(cached, 0, (unsigned char *) lua_tostring(L, -1), len);
+		normalize_cache_entry(cached, len);
+diff -urNad elinks-0.13.20160821-orig/src/scripting/ruby/core.c elinks-0.13.20160821/src/scripting/ruby/core.c
+--- elinks-0.13.20160821-orig/src/scripting/ruby/core.c	2016-10-25 21:40:18.000000000 +0300
++++ elinks-0.13.20160821/src/scripting/ruby/core.c	2016-10-25 21:52:50.000000000 +0300
 @@ -76,10 +76,10 @@
  		break;
  	case TAG_RAISE:
@@ -192,18 +129,18 @@ diff -urNad elinks-0.12pre6-orig/src/scripting/ruby/core.c elinks-0.12pre6/src/s
 -				RSTRING(epath)->ptr, RSTRING(einfo)->ptr);
 +				RSTRING_PTR(epath), RSTRING_PTR(einfo));
  
- 			p = strchr(buff, '\n');
+ 			p = strchr((const char *)buff, '\n');
  			if (p) *p = '\0';
-@@ -115,7 +115,7 @@
- 	unsigned char *message, *line_end;
+@@ -116,7 +116,7 @@
+ 	struct terminal *term;
  
  	str = rb_obj_as_string(str);
 -	message = memacpy(RSTRING(str)->ptr, RSTRING(str)->len);
 +	message = memacpy(RSTRING_PTR(str), RSTRING_LEN(str));
  	if (!message) return Qnil;
  
- 	line_end = strchr(message, '\n');
-@@ -162,8 +162,8 @@
+ 	line_end = strchr((const char *)message, '\n');
+@@ -165,8 +165,8 @@
  		 * the inspect() method, which adds quotes to the strings, so
  		 * gently ignore them. */
  
@@ -214,9 +151,9 @@ diff -urNad elinks-0.12pre6-orig/src/scripting/ruby/core.c elinks-0.12pre6/src/s
  
  		if (*ptr == '"')
  			ptr++, len--;
-diff -urNad elinks-0.12pre6-orig/src/scripting/ruby/core.h elinks-0.12pre6/src/scripting/ruby/core.h
---- elinks-0.12pre6-orig/src/scripting/ruby/core.h	2012-10-28 14:57:15.000000000 +0200
-+++ elinks-0.12pre6/src/scripting/ruby/core.h	2016-10-25 18:41:11.000000000 +0300
+diff -urNad elinks-0.13.20160821-orig/src/scripting/ruby/core.h elinks-0.13.20160821/src/scripting/ruby/core.h
+--- elinks-0.13.20160821-orig/src/scripting/ruby/core.h	2016-10-25 21:40:18.000000000 +0300
++++ elinks-0.13.20160821/src/scripting/ruby/core.h	2016-10-25 21:52:50.000000000 +0300
 @@ -7,6 +7,20 @@
  
  #include <ruby.h>	/* for VALUE */
@@ -238,9 +175,9 @@ diff -urNad elinks-0.12pre6-orig/src/scripting/ruby/core.h elinks-0.12pre6/src/s
  VALUE erb_module;
  
  void alert_ruby_error(struct session *ses, unsigned char *msg);
-diff -urNad elinks-0.12pre6-orig/src/scripting/ruby/hooks.c elinks-0.12pre6/src/scripting/ruby/hooks.c
---- elinks-0.12pre6-orig/src/scripting/ruby/hooks.c	2012-10-28 14:57:15.000000000 +0200
-+++ elinks-0.12pre6/src/scripting/ruby/hooks.c	2016-10-25 18:41:11.000000000 +0300
+diff -urNad elinks-0.13.20160821-orig/src/scripting/ruby/hooks.c elinks-0.13.20160821/src/scripting/ruby/hooks.c
+--- elinks-0.13.20160821-orig/src/scripting/ruby/hooks.c	2016-10-25 21:40:18.000000000 +0300
++++ elinks-0.13.20160821/src/scripting/ruby/hooks.c	2016-10-25 21:52:50.000000000 +0300
 @@ -83,7 +83,7 @@
  	{
  		unsigned char *new_url;
