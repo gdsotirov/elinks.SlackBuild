@@ -19,13 +19,13 @@
 #
 # Visit SlackPack at http://sotirov-bg.net/slackpack/
 #
-# $Id: elinks.SlackBuild,v 1.1 2016/10/25 15:26:40 gsotirov Exp $
+# $Id: elinks.SlackBuild,v 1.2 2016/10/25 18:09:14 gsotirov Exp $
 #
 
 . ../../slack-package.conf
 
 NAME=elinks
-VERSION=0.11.7
+VERSION='0.12pre6'
 ARCH=${ARCH:-i486}
 BUILD=${BUILD:-1}
 
@@ -67,7 +67,7 @@ CPPFLAGS="$SLKCFLAGS -I/usr/include/lua/5.1" \
 ./configure --build=${ARCH}-slackware-linux \
             --host=${ARCH}-slackware-linux \
             --prefix=/usr \
-	    --mandir=/usr/man \
+            --mandir=/usr/man \
             --enable-largefile \
             --enable-bookmarks \
             --enable-xbel \
@@ -86,31 +86,36 @@ CPPFLAGS="$SLKCFLAGS -I/usr/include/lua/5.1" \
             --enable-ftp \
             --enable-gopher \
             --enable-nntp \
+            --enable-smb \
             --enable-mouse \
             --enable-88-colors \
             --enable-256-colors \
+            --enable-true-color \
             --enable-exmode \
             --enable-leds \
             --enable-marks \
             --enable-css \
             --enable-html-highlight \
             --enable-backtrace \
+            --enable-utf-8 \
             --with-gpm \
             --with-zlib \
             --with-bzlib \
             --with-idn \
+            --with-gc \
             --with-guile \
             --with-perl \
             --with-python \
             --with-lua \
             --with-ruby \
+            --with-gnutls \
             --with-openssl \
             --with-x \
             --with-libiconv || exit 5
 
 #           --sable-sm-scripting # requires SpiderMonkey
-#           --enable-smb         # not currently allowed
-#           --enable-gnutls      # older version required
+#           --with-lzma          # many compilation errors
+#           --with-gssapi        # no kerberos
 
 # Build & install
 make V=1 -j4 || exit 6
